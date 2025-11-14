@@ -137,67 +137,95 @@ ggplot(avg_reject, aes(x = true_mu, y = mu_hat_reject)) +
     
 Is the sample average of 𝜇̂ across tests for which the null is rejected approximately equal to the true value of 𝜇? Why or why not?
 No, according to the plot the sample average of μ_hat among only the rejected samples is not equal to the true mean (μ), especially when true mean (μ) is small. Because rejecting H0 requires extreme estimates (sample mean to be far enough from 0) to produce a small p-value. As true mean (μ) gets larger and the test has higher power, nearly all samples are included in the "rejecting" region, and all reject the null. 
+    
+    
+## Problem 3
 
+Upload the dataset.
 ```{r}
-
+homicides <- 
+  read.csv("https://raw.githubusercontent.com/washingtonpost/data-homicides/refs/heads/master/homicide-data.csv")
 ```
 
+Describe the raw data. Create a `city_state` variable (e.g. “Baltimore, MD”) and then summarize within cities to obtain the total number of homicides and the number of unsolved homicides (those for which the disposition is “Closed without arrest” or “Open/No arrest”).
 ```{r}
-
+homicides_sum <- homicides |>
+  mutate(city_state = str_c(city, "," , state),
+         unsolved = disposition %in% c("Closed without arrest", "Open/No arrest")) |>
+  group_by(city_state) |>
+  summarize(
+    total_homicides = n(),
+    unsolved_homicides = sum(unsolved),
+    )
+homicides_sum
 ```
 
-```{r}
-
-```
-
-```{r}
-
-```
+The raw dataset contains `r nrow(homicides)` homicide records collected by The Washington Post from `r length(unique(homicides$city))` large U.S. cities. Each row orresponds to a single homicide case and includes detailed information on" uid, date, reported, victim demographics, the city and state, latitude/longitude, and the case disposition (solved or unsolved).
+    
+    
+      
+For the city of Baltimore, MD, use the `prop.test` function to estimate the proportion of homicides that are unsolved; save the output of `prop.test` as an R object, apply the `broom::tidy` to this object and pull the estimated proportion and confidence intervals from the resulting tidy dataframe.
 
 ```{r}
+baltimore = homicides_sum |>
+  filter(city_state == "Baltimore,MD")
 
+baltimore_test =
+  prop.test(
+    x = baltimore$unsolved_homicides,
+    n = baltimore$total_homicides
+  )
+
+baltimore_tidy = 
+  tidy(baltimore_test) |>
+  select(estimate, conf.low, conf.high)
+  
+baltimore_tidy
 ```
-
+The estimated proportion of unsolved homicides in Baltimore, MD is 
+`r round(baltimore_tidy$estimate, 3)` with a 95% CI of 
+(`r round(baltimore_tidy$conf.low, 3)`, `r round(baltimore_tidy$conf.high, 3)`).
+    
+    
+Now run `prop.test` for each of the cities in your dataset, and extract both the proportion of unsolved homicides and the confidence interval for each. 
+Do this within a “tidy” pipeline, making use of `purrr::map`, `purrr::map2`, list columns and `unnest` as necessary to create a tidy dataframe with estimated proportions and CIs for each city.
 ```{r}
-
+city_prop = homicides_sum |>
+  mutate(
+    test = map2(unsolved_homicides, total_homicides, ~ prop.test(x = .x, n = .y)),
+    tidy = map(test, broom::tidy)) |>
+  select(city_state, tidy) |>
+  unnest(tidy)
 ```
-
+    
+    
+Create a plot that shows the estimates and CIs for each city – check out `geom_errorbar` for a way to add error bars based on the upper and lower limits. Organize cities according to the proportion of unsolved homicides.
 ```{r}
-
+city_prop_plot = city_prop |>
+  arrange(estimate) |>
+  mutate(city_state = factor(city_state, levels = city_state)) |>
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point(color = "red", size = 2) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0.2) +
+  labs(
+    title = "Proportion of Unsolved Homicides by City",
+    x = "City",
+    y = "Estimated Proportion Unsolved"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+city_prop_plot
 ```
 
-```{r}
 
-```
 
-```{r}
 
-```
 
-```{r}
 
-```
 
-```{r}
 
-```
 
-```{r}
 
-```
 
-```{r}
 
-```
 
-```{r}
-
-```
-
-```{r}
-
-```
-
-```{r}
-
-```
